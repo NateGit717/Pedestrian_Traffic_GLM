@@ -1,0 +1,59 @@
+---
+title: "Week 5 Assignment"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=TRUE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+### Pedestrian Traffic Using a GLM
+The following calculations are performed on a data set that contains records of pedestrian traffic, weather, temperature, temperature forecast, precipitation, hour of day and day of the week. The purpose of this analysis is to determine which of these factors have significant impact on pedestrian traffic. The following chunk of code imports and generates a GLM model based on a logistic poisson distribution.
+```{r}
+ped <- read.csv(url("https://raw.githubusercontent.com/NateGit717/Pedestrian_Traffic_GLM/main/pedestrian.csv"))
+ped$weather <- factor(ped$weather)
+ped$weekday <- factor(ped$weekday)
+mod <- glm(pedestrians ~ weather + temperature + precipitation + temperature + precipitation + hour + weekday + temp_forecast, family = poisson(link="log"), data=ped)
+summary(mod)
+ped$prediction <- predict(mod, ped, type ='response')
+```
+The summary of the model indicates that basically every variable is significant to the prediction of pedestrian traffic since the p-values are so small. The following code generates graphics that compare the actual values (gray) and the predicted values (green). These graphics all seem to indicate that they have an effect on the predicted variable, which does line up with the summary table.
+```{r}
+ped %>%
+  group_by(hour) %>%
+  summarise(Actual = sum(pedestrians),
+            Predicted = sum(prediction)) %>%
+  ggplot(aes(x = hour)) +
+        geom_line(aes(y = `Actual`), color = "gray40", size=2, group = 1)+
+        geom_line(aes(y = `Predicted`), color = "green", group = 1)
+
+```
+
+When looking at the time of day we can see that there are the most pedestrians during the middle of the day peaking in the early afternoon around hour 15-16. The predicted values seem to overestimate during the beginning and end of the day and underestimate through the middle of the day.
+
+```{r}
+ped %>%
+  group_by(temperature) %>%
+  summarise(Actual = sum(pedestrians),
+            Predicted = sum(prediction)) %>%
+  ggplot(aes(x = temperature)) +
+        geom_line(aes(y = `Actual`), color = "gray40", size=2, group = 1)+
+        geom_line(aes(y = `Predicted`), color = "green", group = 1)
+```
+
+Looking at temperature, we can see that the graph is more jagged since it contains continuous values. We can also see that pedestrians tend to increase as temperature increases until about 80, then the number of pedestrians falls off sharply. The model tends to slightly under-predict the number of pedestrians, but the behavior between the model's predictions and the actual values are very similar.
+
+```{r}
+ped %>%
+  group_by(temp_forecast) %>%
+  summarise(Actual = sum(pedestrians),
+            Predicted = sum(prediction)) %>%
+  ggplot(aes(x = temp_forecast)) +
+        geom_line(aes(y = `Actual`), color = "gray40", size=1, group = 1)+
+        geom_line(aes(y = `Predicted`), color = "green", group = 1)
+```
+
+The temperature predictions, are much harder to make sense of. Generally, the number of pedestrians increase as the temperature does until about 75. Again, the predicted values seem to slightly underestimate except at the far ends of the graph.
